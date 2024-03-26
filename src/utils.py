@@ -50,15 +50,24 @@ def get_urls(html, base_url):
         urls.append(full_url)
     return urls
 
-def get_image_urls(html):
-    img_urls = list()
+def fetch_images(html, base_url):
+    imgs = []
     soup = BeautifulSoup(html, 'html.parser')
     for img in soup.find_all('img'):
-        img_url = img.get('src')
+        img_url = urljoin(base_url, img.get('src'))
         if img_url:
-            img_urls.append(img_url)
+            try:
+                response = requests.get(img_url)
+                if response.status_code == 200:
+                    content_type = response.headers['content-type']
+                    data = response.content
+                    filename = img_url.split('/')[-1]
+                    imgs.append((filename, content_type, data))
+            except requests.RequestException as e:
+                print(f"Error fetching image from {img_url}: {e}")
 
-    return img_urls
+    return imgs
+
 def fetch_robots_txt(base_url):
     url = f"{base_url}/robots.txt"
     try:

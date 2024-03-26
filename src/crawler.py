@@ -3,8 +3,9 @@ from datetime import datetime
 from collections import deque
 
 from driver import get_driver
-from database import get_site, get_page, insert_site, insert_page, insert_link, insert_image
+from database import get_site, get_page, insert_site, insert_page, insert_link, insert_binary, insert_image
 from utils import get_domain, get_base_url, get_url_path, get_http_headers, get_urls, fetch_images, fetch_robots_txt, fetch_sitemap
+from models import PageType
 
 def crawl(seed_urls, depth):
     driver = get_driver()
@@ -77,6 +78,10 @@ def process_page(url, site_id, status_code, page_type_code, html, accessed_time)
     if (page_id is None):
         page_id = insert_page(site_id, page_type_code, url, html, status_code, accessed_time)
         print(f"New page [id: {page_id}]")
+
+        # if (page_type_code == PageType.BINARY):
+        #     binary_id = insert_binary(page_id, data_type_code, data)
+
         return page_id
     else:
         print(f"Existing page [id: {page_id}]")

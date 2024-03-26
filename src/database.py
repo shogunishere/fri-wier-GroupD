@@ -98,7 +98,19 @@ def insert_page(site_id, page_type_code, url, html_content, http_status_code, ac
             cursor.execute(query, (site_id, page_type_code.name, url, html_content, http_status_code, accessed_time))
 
             return cursor.fetchone()['id']
-        
+
+def insert_binary(page_id, data_type_code, data):
+    with db_connect() as conn:
+        with get_cursor(conn) as cursor:
+            query = """
+            INSERT INTO crawldb.page_data (page_id, data_type_code, data)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id;
+            """
+
+            cursor.execute(query, (page_id, data_type_code, data, ))
+
+            return cursor.fetchone()['id']
+
 def insert_image(page_id, filename, content_type, data, accessed_time):
     with db_connect() as conn:
         with get_cursor(conn) as cursor:

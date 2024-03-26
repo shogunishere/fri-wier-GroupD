@@ -30,6 +30,39 @@ def get_cursor(connection):
     finally:
         cursor.close()
 
+def get_site(domain):
+    with db_connect() as conn:
+            with get_cursor(conn) as cursor:
+                query = """
+                SELECT id FROM crawldb.site WHERE domain = %s;
+                """
+
+                cursor.execute(query, (domain,))
+
+                result = cursor.fetchone()
+
+                if result is not None:
+                    return result[0] 
+                else:
+                    return None 
+                
+
+def get_page(url):
+        with db_connect() as conn:
+            with get_cursor(conn) as cursor:
+                query = """
+                SELECT id FROM crawldb.page WHERE url = %s;
+                """
+
+                cursor.execute(query, (url,))
+
+                result = cursor.fetchone()
+
+                if result is not None:
+                    return result[0] 
+                else:
+                    return None 
+                
 def insert_link(from_page_id, page_id):
     with db_connect() as conn:
         with get_cursor(conn) as cursor:
@@ -41,17 +74,6 @@ def insert_link(from_page_id, page_id):
             cursor.execute(query, (from_page_id, page_id))
 
             return page_id
-
-def get_site(domain):
-    with db_connect() as conn:
-            with get_cursor(conn) as cursor:
-                query = """
-                SELECTE id FROM crawldb.site WHERE domain = %s;
-                """
-
-                cursor.execute(query, (domain))
-
-                return cursor.fetchone()['id']
 
 def insert_site(domain, robots_content, sitemap_content):
     with db_connect() as conn:

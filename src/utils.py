@@ -5,14 +5,27 @@ from urllib.parse import urlparse
 
 from models import PageType
 
+# Without https://
 def get_domain(url):
     parsed_url = urlparse(url)
-    domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
+    domain = parsed_url.netloc
 
     if domain.startswith('www.'):
         domain = domain[4:] 
 
     return domain
+
+# With https://
+def get_base_url(url):
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    return base_url
+
+
+def get_url_path(url):
+    parsed_url = urlparse(url)
+    return parsed_url.path
 
 def get_http_headers(url):
     try:

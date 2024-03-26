@@ -50,6 +50,15 @@ def get_urls(html, base_url):
         urls.append(full_url)
     return urls
 
+def get_image_urls(html):
+    img_urls = list()
+    soup = BeautifulSoup(html, 'html.parser')
+    for img in soup.find_all('img'):
+        img_url = img.get('src')
+        if img_url:
+            img_urls.append(img_url)
+
+    return img_urls
 def fetch_robots_txt(base_url):
     url = f"{base_url}/robots.txt"
     try:

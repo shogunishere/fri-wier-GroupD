@@ -4,7 +4,7 @@ from collections import deque
 
 from driver import get_driver
 from database import get_site, get_page, insert_site, insert_page, insert_link
-from utils import get_domain, get_base_url, get_url_path, get_http_headers, get_urls, fetch_robots_txt, fetch_sitemap
+from utils import get_domain, get_base_url, get_url_path, get_http_headers, get_urls, get_image_urls, fetch_robots_txt, fetch_sitemap
 from models import PageType
 
 def crawl(seed_urls, depth):
@@ -37,7 +37,14 @@ def crawl(seed_urls, depth):
         # Process page
         path_url = get_url_path(url)
         page_id = process_page(path_url, site_id, status_code, page_type_code, html, accessed_time)
+
+        # Link if not the seed
         if (from_page_id): insert_link(from_page_id, page_id)
+
+        # Process images
+        image_urls = get_image_urls(html)
+        for image_url in image_urls:
+            process_image(image_url)
 
         # Populate queue with newly found URLs
         new_urls = get_urls(html, url)
@@ -76,3 +83,10 @@ def process_page(url, site_id, status_code, page_type_code, html, accessed_time)
         print(f"Existing page [id: {page_id}]")
 
     return page_id
+
+def process_images(html, page_id, accessed_time):
+    soup = BeautifulSoup(html, 'html.parser')
+    for img in soup.find_all('img'):
+        img_url = img.get('src')
+        if img_url:
+            process_image(page_id, img_url, accessed_time)

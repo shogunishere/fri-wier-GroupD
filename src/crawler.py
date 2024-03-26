@@ -78,9 +78,14 @@ def process_page(url, site_id, status_code, page_type_code, html, accessed_time)
     if (page_id is None):
         page_id = insert_page(site_id, page_type_code, url, html, status_code, accessed_time)
         print(f"New page [id: {page_id}]")
+        
+        # if (page_type_code == PageType.HTML):
+        #     page_id = insert_page(site_id, page_type_code, url, html, status_code, accessed_time)
+        #     print(f"New page [id: {page_id}]")
 
         # if (page_type_code == PageType.BINARY):
-        #     binary_id = insert_binary(page_id, data_type_code, data)
+        #     binary_id = insert_binary(page_id, 1, 1)
+        #     print(f"New binary [id: {binary_id}]")
 
         return page_id
     else:

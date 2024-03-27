@@ -15,7 +15,7 @@ USER_AGENT = "fri-wier-D"
 
 SEED = ["https://spot.gov.si/assets/sitemap/sitemap.xml" , "http://gov.si", "http://evem.gov.si", "http://e-uprava.gov.si", "http://e-prostor.gov.si"]
 
-WHAT_BROWSER = "Firefox"
+WHAT_BROWSER = "Chrome"
 if WHAT_BROWSER == "Chrome":
     DRIVER_LOCATION = "./driver/chromedriver.exe"
 elif WHAT_BROWSER == "Firefox":

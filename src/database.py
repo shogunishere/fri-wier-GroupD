@@ -3,6 +3,7 @@ import psycopg2.extras
 
 from contextlib import contextmanager
 from settings import DATABASE
+from utils import remove_null_characters
 
 @contextmanager
 def db_connect():
@@ -32,36 +33,52 @@ def get_cursor(connection):
 
 def get_site(domain):
     with db_connect() as conn:
-            with get_cursor(conn) as cursor:
-                query = """
-                SELECT id FROM crawldb.site WHERE domain = %s;
-                """
+        with get_cursor(conn) as cursor:
+            query = """
+            SELECT id FROM crawldb.site WHERE domain = %s;
+            """
 
-                cursor.execute(query, (domain,))
+            cursor.execute(query, (domain,))
 
-                result = cursor.fetchone()
+            result = cursor.fetchone()
 
-                if result is not None:
-                    return result[0] 
-                else:
-                    return None 
+            if result is not None:
+                return result[0] 
+            else:
+                return None 
                 
 
 def get_page(url):
-        with db_connect() as conn:
-            with get_cursor(conn) as cursor:
-                query = """
-                SELECT id FROM crawldb.page WHERE url = %s;
-                """
+    with db_connect() as conn:
+        with get_cursor(conn) as cursor:
+            query = """
+            SELECT id FROM crawldb.page WHERE url = %s;
+            """
 
-                cursor.execute(query, (url,))
+            cursor.execute(query, (url,))
 
-                result = cursor.fetchone()
+            result = cursor.fetchone()
 
-                if result is not None:
-                    return result[0] 
-                else:
-                    return None 
+            if result is not None:
+                return result[0] 
+            else:
+                return None
+                
+def get_rules(site_id):
+    with db_connect() as conn:
+        with get_cursor(conn) as cursor:
+            query = """
+            SELECT robots_content FROM crawldb.site WHERE id = %s;
+            """
+
+            cursor.execute(query, (site_id,))
+
+            result = cursor.fetchone()
+
+            if result is not None:
+                return result[0] 
+            else:
+                return None
                 
 def insert_link(from_page_id, page_id):
     with db_connect() as conn:
@@ -76,6 +93,9 @@ def insert_link(from_page_id, page_id):
             return page_id
 
 def insert_site(domain, robots_content, sitemap_content):
+    robots_content = remove_null_characters(robots_content)
+    sitemap_content = remove_null_characters(sitemap_content)
+    
     with db_connect() as conn:
         with get_cursor(conn) as cursor:
             query = """
@@ -104,7 +124,7 @@ def insert_binary(page_id, data_type_code, data):
         with get_cursor(conn) as cursor:
             query = """
             INSERT INTO crawldb.page_data (page_id, data_type_code, data)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id;
+            VALUES (%s, %s, %s) RETURNING id;
             """
 
             cursor.execute(query, (page_id, data_type_code, data, ))

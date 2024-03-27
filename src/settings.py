@@ -11,7 +11,9 @@ DATABASE = {
     'dbname': os.getenv('DB_NAME')
 }
 
-SEED = ["http://gov.si", "http://evem.gov.si", "http://e-uprava.gov.si", "http://e-prostor.gov.si"]
+USER_AGENT = "fri-wier-D"
+
+SEED = ["https://spot.gov.si/assets/sitemap/sitemap.xml" , "http://gov.si", "http://evem.gov.si", "http://e-uprava.gov.si", "http://e-prostor.gov.si"]
 
 DRIVER_LOCATION = "./driver/chromedriver.exe"
 

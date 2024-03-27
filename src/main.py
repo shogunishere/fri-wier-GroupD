@@ -1,9 +1,8 @@
 import crawler
-from settings import SEED
+from settings import USER_AGENT, SEED
 
 def main():
-    seed_urls = SEED
-    crawler.crawl(seed_urls, 5)
+    crawler.crawl(USER_AGENT, SEED, 5)
 
 if __name__ == "__main__":
     main()

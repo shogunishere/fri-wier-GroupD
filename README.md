@@ -18,6 +18,12 @@ DB_PORT=5432
 
 4. ```CREATE DATABASE govcrawler;```
 
+If you want to inspect remember to use: ```\c govcrawler``` before querying tables.
+
 5. ```docker cp ./db/crawldb.sql govcrawler:/docker-entrypoint-initdb.d/crawldb.sql```
 
-6. ```docker run --name govcrawler -e POSTGRES_PASSWORD=psswd -e POSTGRES_USER=postgres -e POSTGRES_DB=govcrawler -v ${PWD}/pgdata:/var/lib/postgresql/data -v ${PWD}/db:/docker-entrypoint-initdb.d -p 5432:5432 -d postgres:12.2```
+6. Start container:
+```docker run --name govcrawler -e POSTGRES_PASSWORD=psswd -e POSTGRES_USER=postgres -e POSTGRES_DB=govcrawler -v ${PWD}/pgdata:/var/lib/postgresql/data -v ${PWD}/db:/docker-entrypoint-initdb.d -p 5432:5432 -d postgres:12.2```
+
+7. Execute initialization SQL script:
+   ```docker exec -it govcrawler psql -U postgres -d govcrawler -f /docker-entrypoint-initdb.d/crawldb.sql```

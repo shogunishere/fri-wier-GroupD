@@ -7,6 +7,8 @@ from database import get_site, get_page, get_rules, insert_site, insert_page, in
 from utils import get_domain, get_base_url, get_url_path, fetch_http_headers, get_urls, fetch_images, fetch_robots_txt, fetch_sitemap, parse_robots_txt, parse_sitemap, is_url_allowed
 from models import PageType
 
+from urllib.parse import urlparse
+
 def crawl(user_agent, seed_urls, depth):
     driver = get_driver()
 
@@ -20,6 +22,11 @@ def crawl(user_agent, seed_urls, depth):
         # Start retrieving
         print(f"Retrieving page URL '{url}' at depth {current_depth}")
         accessed_time = datetime.now()
+
+        parsed_url = urlparse(url)
+        if parsed_url.scheme not in ['http', 'https']:
+            print(f"Skipping non-HTTP(S) URL: {url}")
+            continue
 
         # Make http head request
         status_code, page_type_code = fetch_http_headers(url)
@@ -59,7 +66,11 @@ def crawl(user_agent, seed_urls, depth):
             # Add to frontier (queue) newly found URLs
             new_urls = get_urls(html, url)
             for new_url in new_urls:
-                if is_url_allowed(new_url, rules):
+                # Check if the URL is allowed by robots.txt and does not start with "tel:"
+                if new_url.startswith("tel:"):
+                    print(f'{new_url} is a phone number. Skipping')
+
+                if is_url_allowed(new_url, rules) and not new_url.startswith("tel:"):
                     queue.append((page_id, new_url, current_depth + 1))
 
     driver.quit()

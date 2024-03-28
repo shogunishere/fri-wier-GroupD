@@ -9,71 +9,31 @@ from models import PageType
 
 from urllib.parse import urlparse
 
-def crawl(user_agent, seed_urls, depth):
-    driver = get_driver()
+import threading
+from queue import Queue, Empty
 
-    queue = deque([(None, url, 1) for url in seed_urls]) # Double ended queue (FIFO) (From page id, current url, current depth)
+def crawl(user_agent, seed_urls, depth, num_threads):
 
-    while queue:
-        from_page_id, url, current_depth = queue.popleft()  
-        if current_depth > depth:
-            break # Break out if maximum depth is exceeded
+    print(f"num_threads: {num_threads}")
 
-        # Start retrieving
-        print(f"Retrieving page URL '{url}' at depth {current_depth}")
-        accessed_time = datetime.now()
+    queue = Queue() # Queue from the Python standard library for thread-safe queueing
 
-        parsed_url = urlparse(url)
-        if parsed_url.scheme not in ['http', 'https']:
-            print(f"Skipping non-HTTP(S) URL: {url}")
-            continue
+    for url in seed_urls:
+        queue.put((None, url, 1))  # (from_page_id, url, current_depth)
 
-        # Make http head request
-        status_code, page_type_code = fetch_http_headers(url)
-        
-        # If page type is HTML get the content
-        html = None
-        if page_type_code == PageType.HTML:
-            driver.get(url)
-            html = driver.page_source
+    # List to hold all the worker threads
+    threads = []
 
-        # Process site
-        base_url = get_base_url(url)
-        site_id, rules, sitemap_urls = process_site(base_url, user_agent)
+    for i in range(num_threads):
+        thread_name = f"Worker-{i+1}"
+        thread = threading.Thread(target=thread_worker, name=thread_name, args=(user_agent, queue, depth))
+        threads.append(thread)
+        thread.start()
 
-        if not is_url_allowed(url, rules):
-            print(f"URL '{url}' is disallowed by robots.txt")
-            continue
-        
-        # Process page
-        path_url = get_url_path(url)
-        page_id = process_page(path_url, site_id, status_code, page_type_code, html, accessed_time)
+    queue.join()
 
-        # Add sitemap urls to the queue
-        for sitemap_url in sitemap_urls:
-            queue.append((page_id, sitemap_url, current_depth + 1))
-
-        # Continue only if page is not yet saved in the database
-        if html is not None and page_id is not None: 
-            # Save where it came from
-            if (from_page_id): insert_link(from_page_id, page_id)
-
-            # Process images
-            imgs = fetch_images(html, base_url)
-            for filename, content_type, data in imgs:
-                process_image(page_id, filename, content_type, data, accessed_time)
-
-            # Add to frontier (queue) newly found URLs
-            new_urls = get_urls(html, url)
-            for new_url in new_urls:
-                # Check if the URL is allowed by robots.txt and does not start with "tel:"
-                if new_url.startswith("tel:"):
-                    print(f'{new_url} is a phone number. Skipping')
-
-                if is_url_allowed(new_url, rules) and not new_url.startswith("tel:"):
-                    queue.append((page_id, new_url, current_depth + 1))
-
-    driver.quit()
+    for thread in threads:
+        thread.join()
 
 def process_site(base_url, user_agent):
 
@@ -132,3 +92,48 @@ def process_page(url, site_id, status_code, page_type_code, html, accessed_time)
 def process_image(page_id, filename, content_type, data, accessed_time):
     image_id = insert_image(page_id, filename, content_type, data, accessed_time)
     print(f"New image [filename: {filename}]")
+
+def fetch_and_process_url(url, user_agent, worker_id, depth):
+    print(f"Worker {worker_id}: Processing {url} with user agent {user_agent}")
+    print(f"Retrieving page URL '{url}' at depth {depth}")
+
+    print(f"Retrieving page URL '{url}' at depth {depth}")
+    accessed_time = datetime.now()
+
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ['http', 'https']:
+        print(f"Skipping non-HTTP(S) URL: {url}")
+        return
+
+    # Make http head request
+    status_code, page_type_code = fetch_http_headers(url)
+
+    # If page type is HTML get the content
+    html = None
+    if page_type_code == PageType.HTML:
+        driver.get(url)
+        html = driver.page_source
+
+        print('html')
+        print(html)
+
+def thread_worker(user_agent, queue, depth):
+    worker_id = threading.current_thread().ident 
+
+    while True:
+        # Get a task from the queue; blocks until a task is available
+        try:
+            from_page_id, url, current_depth = queue.get(timeout=3)  # Adjust timeout as needed
+        except Empty:
+            break  # If queue is empty, exit the thread
+
+        if current_depth > depth:
+            queue.task_done()
+            continue  # Skip processing if depth exceeded but ensure to mark the task as done
+
+        try:
+            # Logic to process a single URL
+            fetch_and_process_url(url, user_agent, worker_id, depth)
+        finally:
+            # Mark the task as done once finished, to unblock the queue.join() call
+            queue.task_done()

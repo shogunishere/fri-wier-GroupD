@@ -1,9 +1,9 @@
 
 from datetime import datetime
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, TimeoutException
 
 from driver import get_driver
-from database import get_site, get_page_by_url, get_rules, get_last_accessed_time, start_frontier, get_duplicate_html, insert_site, insert_frontier, insert_link, insert_binary, insert_image, update_page, update_site_time, finish_frontier
+from database import get_site, get_page_by_url, get_rules, get_last_accessed_time, start_frontier, get_duplicate_html, insert_site, insert_frontier, insert_link, insert_binary, insert_image, update_page, update_site_time, finish_frontier, bulk_insert_frontier, bulk_insert_link
 from utils import get_domain, get_base_url, get_url_path, fetch_http_headers, get_urls, fetch_images, fetch_robots_txt, fetch_sitemap, parse_robots_txt, parse_sitemap_recursively, is_url_allowed, wait, generate_hash
 from models import PageType
 
@@ -38,8 +38,8 @@ def crawl(user_agent):
             print(f"[Disallowed] Continuing with next frontier. Page disallowed by robots.txt.")
             continue
     
-        for sitemap_url in sitemap_urls:
-            queue(frontier_id, sitemap_url)
+        number_added_urls = bulk_queue(frontier_id, sitemap_urls)
+        print(f"[Frontier] Added {number_added_urls} urls from sitemap.")
 
         update_site_time(site_id, current_time)
 
@@ -49,18 +49,23 @@ def crawl(user_agent):
 
         if page_type_code == PageType.HTML:
             try:
+                driver.set_page_load_timeout(5)
                 driver.get(frontier_url)
                 html = driver.page_source
+            except TimeoutException:
+                print(f"[Fail] Continuing with next frontier. Page load timed out.")
+                finish_frontier(frontier_id, PageType.FAIL, status_code)
+                continue
             except WebDriverException as e:
                 finish_frontier(frontier_id, PageType.FAIL, status_code)
-                print(f"[Error] Continuing with next frontier. Driver error: {e}")
+                print(f"[Fail] Continuing with next frontier. Driver error: {e}")
                 continue
 
             new_urls = process_html(frontier_id, site_id, frontier_url, html, status_code, current_time)
 
-            for new_url in new_urls:
-                if is_url_allowed(new_url, site_rules):
-                    queue(frontier_id, new_url)
+            number_added_urls = bulk_queue(frontier_id, new_urls)
+            print(f"[Frontier] Added {number_added_urls} urls from HTML.")
+
 
         elif page_type_code == PageType.BINARY:
             process_binary(frontier_id, site_id, frontier_url, status_code, current_time)
@@ -70,6 +75,15 @@ def crawl(user_agent):
 
 
     driver.quit()
+
+
+def bulk_queue(from_page_ids, urls):
+    current_time = datetime.now()
+
+    frontier_ids = bulk_insert_frontier(urls, current_time)
+    bulk_insert_link(from_page_ids, frontier_ids)
+
+    return len(frontier_ids)
 
 
 def queue(from_page_id, url):
@@ -147,7 +161,7 @@ def process_html(frontier_id, site_id, url, html, status_code, current_time):
     new_urls = get_urls(html, base_url)
 
     print(f"[HTML] Page updated as HTML.")
-    print(f"[Images] Found {len(imgs)} images. Added them.")
+    print(f"[Images] Added {len(imgs)} images.")
 
     return new_urls 
 

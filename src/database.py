@@ -1,7 +1,8 @@
 import psycopg2
-import psycopg2.extras
-
+from psycopg2.extras import execute_values
 from contextlib import contextmanager
+from datetime import datetime
+
 from settings import DATABASE
 from utils import get_domain, get_url_path, remove_null_characters
 from models import PageType
@@ -279,4 +280,81 @@ def update_site_time(site_id, current_time):
             result = cursor.fetchone()
             return result[0] if result else None
 
+def bulk_insert_frontier(from_page_ids, urls):
+    current_time = datetime.now()
 
+    values_to_insert = []
+
+    for from_page_id, url in zip(from_page_ids, urls):
+        if not get_page_by_url(url):
+            values_to_insert.append((url, current_time))
+
+    if values_to_insert:
+        with db_connect() as conn:
+            with get_cursor(conn) as cursor:
+                # Construct a query with multiple values
+                query = "INSERT INTO frontier (url, accessed_time) VALUES %s;"
+                # Execute the query
+                psycopg2.execute_values(cursor, query, values_to_insert)  # Note: execute_values is psycopg2's method
+
+        print(f"[Frontier] Added {len(values_to_insert)} URLs")
+    else:
+        print("[Frontier] No new URLs to add")
+
+
+def bulk_insert_frontier(urls, current_time):
+    values_to_insert = []
+    for url in urls:
+        if not get_page_by_url(url):
+            values_to_insert.append((None, PageType.FRONTIER.name, url, None, None, False, current_time))
+
+
+    if not values_to_insert:
+        return []
+
+    frontier_ids = []
+    with db_connect() as conn:
+        with get_cursor(conn) as cursor:
+            # Create a temporary table to hold returned ids
+            cursor.execute("CREATE TEMP TABLE tmp_ids(id INTEGER)")
+
+            # Construct a query with multiple values and RETURNING clause
+            query = """
+            WITH ins AS (
+                INSERT INTO crawldb.page (site_id, page_type_code, url, html_content, http_status_code, in_progress, accessed_time)
+                VALUES %s
+                RETURNING id
+            )
+            INSERT INTO tmp_ids
+            SELECT id FROM ins;
+            """
+            # Execute the bulk insert
+            execute_values(cursor, query, values_to_insert)
+
+
+            # Retrieve the generated ids
+            cursor.execute("SELECT id FROM tmp_ids")
+            frontier_ids = [row[0] for row in cursor.fetchall()]
+
+            # Drop the temporary table
+            cursor.execute("DROP TABLE tmp_ids")
+
+    return frontier_ids
+
+
+def bulk_insert_link(from_page_id, frontier_ids):
+    if from_page_id is None or frontier_ids is None == 0:
+        return
+    
+    from_page_ids = [from_page_id] * len(frontier_ids)
+    values_to_insert = list(zip(from_page_ids, frontier_ids))
+
+    with db_connect() as conn:
+        with get_cursor(conn) as cursor:
+            # Construct a query with multiple values
+            query = "INSERT INTO crawldb.link (from_page, to_page) VALUES %s;"
+            template = "(%s, %s)"
+
+            execute_values(cursor, query, values_to_insert, template) 
+
+    

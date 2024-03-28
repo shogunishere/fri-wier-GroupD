@@ -1,11 +1,10 @@
 
 from crawler import crawl
 from settings import USER_AGENT, SEED
-from crawler import queue
+from crawler import bulk_queue
 
 def main():
-    for seed_url in SEED:
-        queue(None, seed_url)
+    bulk_queue(None, SEED)
 
     crawl(USER_AGENT)
 

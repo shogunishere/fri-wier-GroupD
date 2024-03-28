@@ -1,71 +1,93 @@
 
 from datetime import datetime
-from collections import deque
+from selenium.common.exceptions import WebDriverException
 
 from driver import get_driver
-from database import get_site, get_page, get_rules, insert_site, insert_page, insert_link, insert_binary, insert_image
-from utils import get_domain, get_base_url, get_url_path, fetch_http_headers, get_urls, fetch_images, fetch_robots_txt, fetch_sitemap, parse_robots_txt, parse_sitemap, is_url_allowed
+from database import get_site, get_page_by_url, get_rules, get_last_accessed_time, start_frontier, get_duplicate_html, insert_site, insert_frontier, insert_link, insert_binary, insert_image, update_page, update_site_time, finish_frontier
+from utils import get_domain, get_base_url, get_url_path, fetch_http_headers, get_urls, fetch_images, fetch_robots_txt, fetch_sitemap, parse_robots_txt, parse_sitemap_recursively, is_url_allowed, wait, generate_hash
 from models import PageType
 
-def crawl(user_agent, seed_urls, depth):
+
+def crawl(user_agent):
     driver = get_driver()
 
-    queue = deque([(None, url, 1) for url in seed_urls]) # Double ended queue (FIFO) (From page id, current url, current depth)
+    while True:
 
-    while queue:
-        from_page_id, url, current_depth = queue.popleft()  
-        if current_depth > depth:
-            break # Break out if maximum depth is exceeded
+        frontier_id, frontier_url = start_frontier()
 
-        # Start retrieving
-        print(f"Retrieving page URL '{url}' at depth {current_depth}")
-        accessed_time = datetime.now()
-
-        # Make http head request
-        status_code, page_type_code = fetch_http_headers(url)
+        if frontier_id is None:
+            print("Frontier is empty! Exiting.")
+            break
         
-        # If page type is HTML get the content
-        html = None
-        if page_type_code == PageType.HTML:
-            driver.get(url)
-            html = driver.page_source
+        current_time = datetime.now()
 
-        # Process site
-        base_url = get_base_url(url)
-        site_id, rules, sitemap_urls = process_site(base_url, user_agent)
+        print("-" * 75)
+        print(f"[Retrieving] {frontier_url}:")
 
-        if not is_url_allowed(url, rules):
-            print(f"URL '{url}' is disallowed by robots.txt")
+        status_code, page_type_code = fetch_http_headers(frontier_url)
+       
+        if status_code is None and page_type_code is None:
+            finish_frontier(frontier_id, PageType.FAIL, status_code)
+            print(f"[Fail] Continuing with next frontier. Page down.")
             continue
-        
-        # Process page
-        path_url = get_url_path(url)
-        page_id = process_page(path_url, site_id, status_code, page_type_code, html, accessed_time)
 
-        # Add sitemap urls to the queue
+        site_id, site_rules, sitemap_urls, site_last_access_time = process_site(frontier_url, user_agent)
+
+        if not is_url_allowed(frontier_url, site_rules):
+            finish_frontier(frontier_id, PageType.DISALLOWED, status_code)
+            print(f"[Disallowed] Continuing with next frontier. Page disallowed by robots.txt.")
+            continue
+    
         for sitemap_url in sitemap_urls:
-            queue.append((page_id, sitemap_url, current_depth + 1))
+            queue(frontier_id, sitemap_url)
 
-        # Continue only if page is not yet saved in the database
-        if html is not None and page_id is not None: 
-            # Save where it came from
-            if (from_page_id): insert_link(from_page_id, page_id)
+        update_site_time(site_id, current_time)
 
-            # Process images
-            imgs = fetch_images(html, base_url)
-            for filename, content_type, data in imgs:
-                process_image(page_id, filename, content_type, data, accessed_time)
+        timeout = site_rules.get("Crawl-delay") if site_rules else 0
 
-            # Add to frontier (queue) newly found URLs
-            new_urls = get_urls(html, url)
+        wait(current_time, site_last_access_time, timeout)
+
+        if page_type_code == PageType.HTML:
+            try:
+                driver.get(frontier_url)
+                html = driver.page_source
+            except WebDriverException as e:
+                finish_frontier(frontier_id, PageType.FAIL, status_code)
+                print(f"[Error] Continuing with next frontier. Driver error: {e}")
+                continue
+
+            new_urls = process_html(frontier_id, site_id, frontier_url, html, status_code, current_time)
+
             for new_url in new_urls:
-                if is_url_allowed(new_url, rules):
-                    queue.append((page_id, new_url, current_depth + 1))
+                if is_url_allowed(new_url, site_rules):
+                    queue(frontier_id, new_url)
+
+        elif page_type_code == PageType.BINARY:
+            process_binary(frontier_id, site_id, frontier_url, status_code, current_time)
+
+        finish_frontier(frontier_id, None, status_code)
+        print(f"[Finish] Successfully processed the page (id: {frontier_id}).")
+
 
     driver.quit()
 
-def process_site(base_url, user_agent):
 
+def queue(from_page_id, url):
+    current_time = datetime.now()
+
+    page_exists = get_page_by_url(url)
+
+    if not page_exists:
+        page_id = insert_frontier(url, current_time)
+        insert_link(from_page_id, page_id)
+        print(f"[Frontier] Added {url}")
+
+    else:
+        print(f"[Frontier] Already exists {url}")
+    
+
+def process_site(url, user_agent):
+    base_url = get_base_url(url)
     domain = get_domain(base_url)
 
     site_id = get_site(domain)
@@ -80,44 +102,64 @@ def process_site(base_url, user_agent):
         sitemap = None
         sitemap_urls = []
         if rules is not None and rules["Sitemap"]:
-            sitemap = fetch_sitemap(base_url, rules["Sitemap"])
-            sitemap_urls = parse_sitemap(sitemap)
+            sitemap = fetch_sitemap(rules["Sitemap"])
+            if sitemap:
+                sitemap_urls = parse_sitemap_recursively(sitemap)
 
         site_id = insert_site(domain, robots_txt, sitemap)
 
-        print(f"New site [id: {site_id}]")
+        print(f"[Site] Site not found. Created new.")
+        print(f"[Robots] Robots.txt {'found' if robots_txt else 'not found'}.")
+        print(f"[Sitemap] Found {len(sitemap_urls)} URLs in sitemap.")
 
-        return site_id, rules, sitemap_urls
+        return site_id, rules, sitemap_urls, None
 
     else:
         robots_txt = get_rules(site_id)
         rules = parse_robots_txt(robots_txt, user_agent)
+        last_access_time = get_last_accessed_time(site_id)
 
-        print(f"Existing site [id: {site_id}]")
+        print(f"[Site] Site already exists. Found it.")
 
-        return site_id, rules, []
+        return site_id, rules, [], last_access_time
 
-def process_page(url, site_id, status_code, page_type_code, html, accessed_time):
 
-    # TODO: check hash for duplicates
+def process_html(frontier_id, site_id, url, html, status_code, current_time):
+    path_url = get_url_path(url)
+    base_url = get_base_url(url)
 
-    page_id = get_page(url)
+    html_hash = generate_hash(html)
+    if get_duplicate_html(html_hash):
+        update_page(frontier_id, site_id, path_url, PageType.DUPLICATE, None, html_hash, status_code, current_time)
+        print(f"[Duplicate] Page updated as DUPLICATE.")
 
-    # Check if already exists
-    if (page_id is None):
-        page_id = insert_page(site_id, page_type_code, url, html, status_code, accessed_time)
-        print(f"New page [id: {page_id}]")
+        return []
 
-        # Binary
-        if (page_type_code == PageType.BINARY):
-            binary_id = insert_binary(page_id, None, None) # Not adding binary data
-            print(f"New binary [id: {binary_id}]")
+            
+    update_page(frontier_id, site_id, path_url, PageType.HTML, html, html_hash, status_code, current_time)
 
-        return page_id
-    else:
-        print(f"Existing page [id: {page_id}]")
-        return None
+    # Process html images
+    imgs = fetch_images(html, base_url)
+    for filename, content_type, data in imgs:
+        process_image(frontier_id, filename, content_type, data, current_time)
 
-def process_image(page_id, filename, content_type, data, accessed_time):
-    image_id = insert_image(page_id, filename, content_type, data, accessed_time)
-    print(f"New image [filename: {filename}]")
+    # Get html urls
+    new_urls = get_urls(html, base_url)
+
+    print(f"[HTML] Page updated as HTML.")
+    print(f"[Images] Found {len(imgs)} images. Added them.")
+
+    return new_urls 
+
+
+def process_binary(frontier_id, site_id, url, status_code, current_time):
+    path_url = get_url_path(url)
+
+    update_page(frontier_id, site_id, path_url, PageType.BINARY, None, None, status_code, current_time)
+    insert_binary(frontier_id, None, None) # Not adding binary data
+
+    print(f"[Binary] Page updated as BINARY.")
+
+
+def process_image(page_id, filename, content_type, data, current_time):
+    image_id = insert_image(page_id, filename, content_type, data, current_time)

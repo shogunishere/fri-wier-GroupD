@@ -5,6 +5,8 @@ class PageType(Enum):
     BINARY = 2
     DUPLICATE = 3
     FRONTIER = 4
+    DISALLOWED = 5
+    FAIL = 6
 
 class BinaryType(Enum):
     DOC = 1

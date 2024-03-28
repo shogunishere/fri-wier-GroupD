@@ -12,7 +12,6 @@ def crawl(user_agent):
     driver = get_driver()
 
     while True:
-
         frontier_id, frontier_url = start_frontier()
 
         if frontier_id is None:
@@ -78,6 +77,9 @@ def crawl(user_agent):
 
 
 def bulk_queue(from_page_ids, urls):
+
+    urls = set(url.rstrip('/') for url in urls)
+
     current_time = datetime.now()
 
     frontier_ids = bulk_insert_frontier(urls, current_time)

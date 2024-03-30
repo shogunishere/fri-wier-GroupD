@@ -18,7 +18,7 @@ SET row_security = off;
 
 --
 -- Name: crawldb; Type: SCHEMA; Schema: -; Owner: postgres
---
+-- 
 
 CREATE SCHEMA crawldb;
 

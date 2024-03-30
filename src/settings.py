@@ -13,8 +13,10 @@ DATABASE = {
 
 USER_AGENT = "fri-wier-D"
 
-SEED = ["https://spot.gov.si/assets/sitemap/sitemap.xml" , "http://gov.si", "http://evem.gov.si", "http://e-uprava.gov.si", "http://e-prostor.gov.si"]
+SEED = ["http://sitranet.si/navodila-sivis2.pdf", "https://spot.gov.si/assets/sitemap/sitemap.xml" , "http://gov.si", "http://evem.gov.si", "http://e-uprava.gov.si", "http://e-prostor.gov.si"]
 
 DRIVER_LOCATION = "./driver/chromedriver.exe"
 
 TIMEOUT = 5
+
+WORKERS = 1

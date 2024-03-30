@@ -10,7 +10,7 @@ from hashlib import sha256
 
 from settings import TIMEOUT
 
-from models import PageType
+from models import PageType, BinaryType
 
 # Without https://
 def get_domain(url):
@@ -35,15 +35,29 @@ def get_url_path(url):
     parsed_url = urlparse(url)
     return parsed_url.path if parsed_url.path else "/"
 
+
 def fetch_http_headers(url):
     try:
         response = requests.head(url)
         content_type = response.headers.get('Content-Type', 'text/html')
         page_type_code = PageType.HTML
-        if 'text/html' in content_type:
-            page_type_code = PageType.HTML
-        elif 'application/pdf' in content_type:
-            page_type_code = PageType.BINARY
+
+        content_type_mapping = {
+            'text/html': PageType.HTML,
+            'application/pdf': BinaryType.PDF,
+            'application/vnd.ms-powerpoint': BinaryType.PPT,
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation': BinaryType.PPTX,
+            'application/msword': BinaryType.DOC,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': BinaryType.DOCX
+        }
+
+
+        # Setting the page type code based on content type
+        for key, value in content_type_mapping.items():
+            if key in content_type:
+                page_type_code = value
+                break
+
 
         return response.status_code, page_type_code
     except requests.RequestException as e:
@@ -55,8 +69,13 @@ def get_urls(html, base_url):
     soup = BeautifulSoup(html, 'html.parser')
     urls = []
     for link in soup.find_all('a', href=True):
+        # Join the URL with the base URL
         full_url = urljoin(base_url, link['href'])
-        urls.append(full_url)
+        # Parse the URL
+        parsed_url = urlparse(full_url)
+        # Check if the URL's scheme is 'https' and if it's a valid netloc
+        if parsed_url.scheme == 'https' and parsed_url.netloc:
+            urls.append(full_url)
     return urls
 
 
@@ -74,7 +93,8 @@ def fetch_images(html, base_url):
                     filename = img_url.split('/')[-1]
                     imgs.append((filename, content_type, data))
             except requests.RequestException as e:
-                print(f"[Error] Error fetching image from {img_url}: {e}")
+                # print(f"[Error] Error fetching image from {img_url}: {e}")
+                pass
 
     return imgs
 
@@ -86,7 +106,7 @@ def fetch_robots_txt(base_url):
         response.raise_for_status()  
         return response.text
     except requests.RequestException as e:
-        print(f"[Error] Error fetching robots.txt from {url}: {e}")
+        # print(f"[Error] Error fetching robots.txt from {url}: {e}")
         return None
 
 
@@ -97,9 +117,10 @@ def fetch_sitemap(url):
         response = requests.get(url, timeout=1)
         response.raise_for_status() 
         return response.content.decode('utf-8')
-    except requests.RequestException as e:
-        print(f"[Error] Error fetching sitemap: {e}")
+    except Exception as e:
+        # print(f"[Error] Error fetching sitemap: {e}")
         return None
+    
 
     
 

@@ -1,5 +1,6 @@
 import psycopg2
 from psycopg2.extras import execute_values
+from psycopg2.extensions import ISOLATION_LEVEL_REPEATABLE_READ, ISOLATION_LEVEL_READ_COMMITTED
 from contextlib import contextmanager
 from datetime import datetime
 import threading
@@ -13,17 +14,19 @@ lock = threading.Lock()
 
 
 @contextmanager
-def db_connect():
+def db_connect(isolation_level=ISOLATION_LEVEL_REPEATABLE_READ):
     conn = psycopg2.connect(
         host=DATABASE['host'],
         port=DATABASE['port'],
         dbname=DATABASE['dbname'],
         user=DATABASE['user'],
         password=DATABASE['password'])
+    conn.set_isolation_level(isolation_level)
     try:
         yield conn
     except Exception as e:
         conn.rollback()
+        print(f"DATABASE ERROR: {e}")
         raise e
     else:
         conn.commit()
@@ -183,6 +186,7 @@ def insert_link(from_page_id, page_id):
 
                 return page_id
 
+
 def insert_site(domain, robots_content, sitemap_content):
     robots_content = remove_null_characters(robots_content)
     sitemap_content = remove_null_characters(sitemap_content)
@@ -198,6 +202,7 @@ def insert_site(domain, robots_content, sitemap_content):
                 cursor.execute(query, (domain, robots_content, sitemap_content))
 
                 return cursor.fetchone()['id']
+
 
 def insert_frontier(url, accessed_time):
     with db_connect() as conn:
@@ -302,14 +307,16 @@ def update_site_time(site_id, current_time):
                 return result[0] if result else None
 
 
+#
 # Bulk operations
-
+#
 
 def bulk_check_existing_urls(urls):
     # Prepare the data for the query as a list of tuples (url, domain, url_path)
     query_data = [(url, get_domain(url), get_url_path(url)) for url in urls]
 
     if not query_data:
+        print(f"no urls given, returning empty set")
         return set()
 
     # Construct the query using a CTE for better readability and performance
@@ -328,21 +335,24 @@ def bulk_check_existing_urls(urls):
     existing_urls = set()
     with db_connect() as conn:
         with get_cursor(conn) as cursor:
+            print(f"checking for existing")
             # Using execute_values to handle the insertion of multiple rows into the CTE
-            execute_values(cursor, query, query_data, template=None, page_size=100)
+            execute_values(cursor, query, query_data)
             existing_urls = {row[0] for row in cursor.fetchall()}
     return existing_urls
 
 
 def bulk_insert_frontier(urls, current_time):
-    if not urls:
-        return []
 
     with lock:
         print(f"Starting bulk insert")
-
+        print(f"Urls to be added {urls}")
+        if not urls:
+                print(f"Ended bulk insert")
+                return []
         try:
             existing_urls = bulk_check_existing_urls(urls)
+            print(f"Existing urls are {existing_urls}")
             values_to_insert = [
                 (None, PageType.FRONTIER.name, url, None, None, False, current_time) 
                 for url in urls if url not in existing_urls

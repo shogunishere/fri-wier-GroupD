@@ -31,11 +31,16 @@ def get_base_url(url):
     return base_url
 
 
+# Path with parameters
 def get_url_path(url):
     parsed_url = urlparse(url)
-    return parsed_url.path if parsed_url.path else "/"
+    path = parsed_url.path if parsed_url.path else "/"
+    if parsed_url.query:
+        path += "?" + parsed_url.query
+    return path
 
 
+# Fetch status code and content type with head request
 def fetch_http_headers(url):
     try:
         response = requests.head(url)
@@ -51,34 +56,30 @@ def fetch_http_headers(url):
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': BinaryType.DOCX
         }
 
-
-        # Setting the page type code based on content type
         for key, value in content_type_mapping.items():
             if key in content_type:
                 page_type_code = value
                 break
 
-
         return response.status_code, page_type_code
     except requests.RequestException as e:
-        print(f"[Error] Header request failed: {e}")
         return None, None
 
- 
+
+# Get all urls from the HTML
 def get_urls(html, base_url):
     soup = BeautifulSoup(html, 'html.parser')
     urls = []
     for link in soup.find_all('a', href=True):
-        # Join the URL with the base URL
         full_url = urljoin(base_url, link['href'])
-        # Parse the URL
+ 
         parsed_url = urlparse(full_url)
-        # Check if the URL's scheme is 'https' and if it's a valid netloc
         if parsed_url.scheme == 'https' and parsed_url.netloc:
             urls.append(full_url)
     return urls
 
 
+# Get all images from the HTML
 def fetch_images(html, base_url):
     imgs = []
     soup = BeautifulSoup(html, 'html.parser')
@@ -88,10 +89,11 @@ def fetch_images(html, base_url):
             try:
                 response = requests.get(img_url)
                 if response.status_code == 200:
-                    content_type = response.headers['content-type']
-                    data = response.content
-                    filename = img_url.split('/')[-1]
-                    imgs.append((filename, content_type, data))
+                    content_type = response.headers.get('content-type')
+                    if content_type:
+                        data = response.content
+                        filename = img_url.split('/')[-1]
+                        imgs.append((filename, content_type, data))
             except requests.RequestException as e:
                 # print(f"[Error] Error fetching image from {img_url}: {e}")
                 pass
@@ -99,6 +101,7 @@ def fetch_images(html, base_url):
     return imgs
 
 
+# Fetch robots.txt from the site
 def fetch_robots_txt(base_url):
     url = f"{base_url}/robots.txt"
     try:
@@ -106,10 +109,10 @@ def fetch_robots_txt(base_url):
         response.raise_for_status()  
         return response.text
     except requests.RequestException as e:
-        # print(f"[Error] Error fetching robots.txt from {url}: {e}")
         return None
 
 
+# Fetch sitemap from the site
 def fetch_sitemap(url):
     if url is None:
         return None
@@ -118,12 +121,10 @@ def fetch_sitemap(url):
         response.raise_for_status() 
         return response.content.decode('utf-8')
     except Exception as e:
-        # print(f"[Error] Error fetching sitemap: {e}")
         return None
     
 
-    
-
+# Parse robots.txt do dictionary
 def parse_robots_txt(robots_txt, user_agent):
     rules = {"Allow": [], "Disallow": [], "Crawl-delay": TIMEOUT, "Sitemap": None}
     user_agent_specific = False
@@ -137,7 +138,6 @@ def parse_robots_txt(robots_txt, user_agent):
         if not line or line.startswith("#"):  
             continue
 
-        # Split the line into key and value using robust method
         parts = line.split(":", 1)
         if len(parts) != 2:
             continue  # Invalid line
@@ -162,6 +162,7 @@ def parse_robots_txt(robots_txt, user_agent):
     return rules
 
 
+# Parse sitemap recursively to avoid links to other sitemaps
 def parse_sitemap_recursively(sitemap, urls=[], root_url=None, max_urls=25):
     try:    
         if isinstance(sitemap, bytes):
@@ -196,26 +197,8 @@ def parse_sitemap_recursively(sitemap, urls=[], root_url=None, max_urls=25):
     return urls
 
 
-def parse_sitemap(sitemap):
-    urls = []
-    try:    
-        if isinstance(sitemap, bytes):
-            sitemap = sitemap.sitemap('utf-8')
 
-        tree = ET.parse(StringIO(sitemap))
-        root = tree.getroot()
-
-        namespaces = {'ns': root.tag.split('}')[0].strip('{')}
-
-        for url in root.findall('ns:url/ns:loc', namespaces=namespaces):
-            urls.append(url.text)
-
-    except ET.ParseError as e:
-        print(f"[Error] Error parsing sitemap XML: {e}")
-
-    return urls
-
-
+# From robots.txt check if url is allowed
 def is_url_allowed(url, rules):
     if not rules or ('Allow' in rules and not rules['Allow']):
         return True  # Allow all if no explicit rules
@@ -228,10 +211,12 @@ def is_url_allowed(url, rules):
     return True
 
 
+# Make sure sitemap content doesn't contain null characters when inserting in database
 def remove_null_characters(content):
     return content.replace('\x00', '') if content else content
 
 
+# Sleep the thread to reach site's timeout
 def wait(current_time, last_access_time, timeout):
     if last_access_time is None:
         return None
@@ -244,6 +229,8 @@ def wait(current_time, last_access_time, timeout):
         print(f"[Sleeping] {sleep_time} s")
         sleep(sleep_time)
 
+
+# Generate SHA256 hash
 def generate_hash(content):
     return sha256(content.encode('utf-8')).hexdigest()
     

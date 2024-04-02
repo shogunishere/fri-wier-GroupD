@@ -19,4 +19,4 @@ DRIVER_LOCATION = "./driver/chromedriver.exe"
 
 TIMEOUT = 5
 
-WORKERS = 1
+WORKERS = 5

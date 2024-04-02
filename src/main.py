@@ -4,6 +4,7 @@ from settings import USER_AGENT, SEED, WORKERS
 from crawler import bulk_queue
 import threading
 
+
 def main():
     bulk_queue(None, SEED)
 

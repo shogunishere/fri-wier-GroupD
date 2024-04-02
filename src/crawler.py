@@ -6,7 +6,7 @@ from driver import get_driver
 from database import get_site, get_page_by_url, get_rules, get_last_accessed_time, start_frontier, get_duplicate_html, insert_site, insert_frontier, insert_link, insert_binary, insert_image, update_page, update_site_time, finish_frontier, bulk_insert_frontier, bulk_insert_link
 from utils import get_domain, get_base_url, get_url_path, fetch_http_headers, get_urls, fetch_images, fetch_robots_txt, fetch_sitemap, parse_robots_txt, parse_sitemap_recursively, is_url_allowed, wait, generate_hash
 from models import PageType
-from database import lock
+
 
 def crawl_worker(user_agent, worker_name):
     crawl(user_agent, worker_name)
@@ -78,14 +78,15 @@ def crawl(user_agent, worker_name):
 
 
         finish_frontier(frontier_id, None, status_code)
-        
+
     driver.quit()
 
 
 
 def bulk_queue(from_page_ids, urls):
 
-    urls = set(url.rstrip('/') for url in urls)
+    urls = set(url.lower().rstrip('/') for url in urls)
+    # urls = set(url.rstrip('/') for url in urls)
 
     current_time = datetime.now()
 

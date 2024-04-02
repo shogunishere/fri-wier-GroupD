@@ -17,6 +17,7 @@ def crawl(user_agent, worker_name):
 
     while True:
         frontier_id, frontier_url = start_frontier()
+        print(f"[{worker_name}] Picked the next frontier with url '{frontier_url}'")
 
         if frontier_id is None:
             print("[EXIT] Frontier is empty!")
@@ -53,7 +54,7 @@ def crawl(user_agent, worker_name):
 
         if page_type_code == PageType.HTML:
             try:
-                driver.set_page_load_timeout(5)
+                driver.set_page_load_timeout(10)
                 driver.get(frontier_url)
                 html = driver.page_source
             except TimeoutException:
@@ -96,18 +97,18 @@ def bulk_queue(from_page_ids, urls):
     return len(frontier_ids)
 
 
-def queue(from_page_id, url):
-    current_time = datetime.now()
+# def queue(from_page_id, url):
+#     current_time = datetime.now()
 
-    page_exists = get_page_by_url(url)
+#     page_exists = get_page_by_url(url)
 
-    if not page_exists:
-        page_id = insert_frontier(url, current_time)
-        insert_link(from_page_id, page_id)
-        print(f"[Frontier] Added {url}")
+#     if not page_exists:
+#         page_id = insert_frontier(url, current_time)
+#         insert_link(from_page_id, page_id)
+#         print(f"[Frontier] Added {url}")
 
-    else:
-        print(f"[Frontier] Already exists {url}")
+#     else:
+#         print(f"[Frontier] Already exists {url}")
     
 
 def process_site(url, user_agent):

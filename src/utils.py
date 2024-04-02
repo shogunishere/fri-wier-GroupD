@@ -1,5 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, UnicodeDammit
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
@@ -68,7 +68,10 @@ def fetch_http_headers(url):
 
 # Get all urls from the HTML
 def get_urls(html, base_url):
+    dammit = UnicodeDammit(html)
+    html = dammit.unicode_markup
     soup = BeautifulSoup(html, 'html.parser')
+
     urls = []
     for link in soup.find_all('a', href=True):
         full_url = urljoin(base_url, link['href'])
@@ -222,7 +225,6 @@ def wait(current_time, last_access_time, timeout):
         return None
     
     time_delta = current_time - last_access_time
-
 
     if time_delta.total_seconds() < timeout:
         sleep_time = timeout - time_delta.total_seconds()

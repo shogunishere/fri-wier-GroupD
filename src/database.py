@@ -50,7 +50,7 @@ def start_frontier():
                     select_query = """
                         SELECT id, url
                         FROM crawldb.page 
-                        WHERE in_progress != TRUE AND page_type_code = 'FRONTIER'
+                        WHERE in_progress != TRUE AND page_type_code = 'FRONTIER' AND url LIKE '%pdf%'
                         ORDER BY accessed_time ASC
                         LIMIT 1;
                     """
@@ -317,7 +317,7 @@ def bulk_check_existing_urls(urls):
     # Prepare the data for the query as a list of tuples (url, domain, url_path)
     query_data = [(url, get_domain(url), get_url_path(url)) for url in urls]
 
-    if not query_data:
+    if not query_data:  
         print(f"no urls given, returning empty set")
         return set()
 

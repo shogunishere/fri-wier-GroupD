@@ -46,7 +46,8 @@ def fetch_http_headers(url):
         response = requests.head(url)
         content_type = response.headers.get('Content-Type', 'text/html')
         page_type_code = PageType.HTML
-
+        print(f"Response is: {response.headers}")
+        print(f"Content type is {content_type}")
         content_type_mapping = {
             'text/html': PageType.HTML,
             'application/pdf': BinaryType.PDF,

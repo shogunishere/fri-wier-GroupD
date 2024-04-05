@@ -1,6 +1,6 @@
 1. Create a virtual Python environment and install required packags (requirements.txt)
 
-2. Download init SQL data file from mega (link in /db) and put in root 
+2. Download init SQL data file from mega (link in /db) and put in /crawler
 
 3. Create the following .env file:
 

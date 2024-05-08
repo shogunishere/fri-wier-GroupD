@@ -81,3 +81,62 @@ class OverstockXPathExtractor():
                 json.dump(json_items, json_file, indent=4)
         
         return json_items
+		
+class RtvsloXPathExtractor():
+    def __init__(self, file_path, save_dir):
+        self.file_path = file_path
+        self.save_dir = save_dir
+        self.html_reader = HTMLReader(file_path)
+        self.html_content = self.html_reader.read_html_file()
+        self.tree = html.fromstring(self.html_content)
+        
+    def extract_author(self):
+        authors = self.tree.xpath("//div[@class='article-meta']/div[@class='author']/div[@class='author-name']/text()")
+        return authors[0]
+    
+    def extract_published_time(self):
+        publish_times = self.tree.xpath("//div[@class='article-meta']/div[@class='publish-meta']/text()")
+        return publish_times[0].strip()
+
+    def extract_title(self):
+        titles = self.tree.xpath("//header[@class='article-header']/h1/text()")
+        return titles[0]
+
+    def extract_subtitle(self):
+        subtitles = self.tree.xpath("//header[@class='article-header']/div[@class='subtitle']/text()")
+        return subtitles[0] 
+
+    def extract_lead(self):
+        leads = self.tree.xpath("//header[@class='article-header']/p[@class='lead']/text()")
+        return leads[0]
+
+    def extract_content(self):
+        content_lines = self.tree.xpath("//div[@class='article-body']/article[@class='article']/p/text() | //div[@class='article-body']/article[@class='article']/p/strong/text()")
+        content_html = "\n".join(content_lines)
+        return content_html  
+
+    def to_json(self, save=True):
+        author = self.extract_author()
+        published_time = self.extract_published_time()
+        title = self.extract_title()
+        subtitle = self.extract_subtitle()
+        lead = self.extract_lead()
+        content = self.extract_content()
+
+        json_item = {
+            "author": author,
+            "published_time": published_time,
+            "title": title,
+            "subtitle": subtitle,
+            "lead": lead,
+            "content": content
+        }
+
+        if save:
+            if not os.path.exists(self.save_dir):
+                os.makedirs(self.save_dir)  
+            json_filename = os.path.join(self.save_dir, 'extracted_data.json')
+            with open(json_filename, 'w') as json_file:
+                json.dump(json_item, json_file, indent=4)
+        
+        return json_item

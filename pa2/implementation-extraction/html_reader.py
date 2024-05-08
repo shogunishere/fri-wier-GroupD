@@ -1,3 +1,4 @@
+from bs4 import BeautifulSoup # Used for Roadrunner only
 class HTMLReader:
     def __init__(self, file_path):
         self.file_path = file_path
@@ -20,3 +21,11 @@ class HTMLReader:
 
         print("All encoding attempts failed.")
         return None
+
+    def read_dom_tree(self):
+        # This is used pre-processing step in Roadrunner. It is NOT used anywhere else
+        with open(self.file_path, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        return soup

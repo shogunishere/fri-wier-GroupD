@@ -135,3 +135,78 @@ class RtvsloRegularExpressionExtractor():
                 json.dump(json_item, json_file, indent=4)
         
         return json_item
+		
+class BigBangRegularExpressionExtractor():
+    def __init__(self, file_path, save_dir):
+        self.file_path = file_path
+        self.save_dir = save_dir
+        self.html_reader = HTMLReader(file_path)
+        self.html_content = self.html_reader.read_html_file()
+     
+    def extract_product_type(self):
+        pattern = r'<div .*?class="cp-category".*?>([^<]+)<\/a><\/div>'
+        productType = re.findall(pattern, self.html_content, re.IGNORECASE | re.DOTALL)
+        #print("================")
+        #print(productType[0])
+        #print("================")
+        return productType
+		
+    def extract_product_name(self):
+        pattern = r'<h2 .*?class="cp-title".*?>([^<]+)<\/a><\/h2>'
+        productName = re.findall(pattern, self.html_content, re.IGNORECASE | re.DOTALL)
+        #print("================")
+        #print(productName[0])
+        #print("================")
+        return productName
+	
+    def extract_price(self):
+        pattern = r'<div .*?class="cp-current-price".*?>([^<]+)<\/div>'
+        price = re.findall(pattern, self.html_content, re.IGNORECASE | re.DOTALL)
+        #print("================")
+        #print(price[0])
+        #print("================")
+        return price
+		
+    def extract_alternative_price(self):
+        pattern = r'ali od <strong>(\d+,\d{2} €)'
+        alternativePrice = re.findall(pattern, self.html_content, re.IGNORECASE | re.DOTALL)
+        #print("================")
+        #print(alternativePrice[0])
+        #print("================")
+        return alternativePrice
+		
+    def extract_in_stock(self):
+        #pattern = r'<div\s+[^>]*class="available-qty-btn"[^>]*>\s*<span[^>]*>(.*?)<\/span>'
+        pattern =r'<div\s+[^>]*class="available-qty-btn"[^>]*>\s*<span[^>]*>(?:<strong>)?(.*?)(?:<\/strong>)?<\/span>' #Eliminate <strong></strong>
+        inStock = re.findall(pattern, self.html_content, re.IGNORECASE | re.DOTALL)
+        #print("================")
+        #print(inStock)
+        #print("================")
+        return inStock
+
+    def to_json(self, save=True):
+        extracted_type = self.extract_product_type()
+        extracted_name = self.extract_product_name()
+        extracted_prices = self.extract_price()
+        extracted_alternative_prices = self.extract_alternative_price()
+        extracted_in_stock = self.extract_in_stock()
+        
+        json_items = []
+        for type, name, price, alternative_price, in_stock in zip(extracted_type, extracted_name, extracted_prices, extracted_alternative_prices, extracted_in_stock):
+            item = {
+                "product_type": type,
+                "product_name": name,
+                "product_price": price,
+                "product_alternative_price": alternative_price,
+                "product_in_stock": in_stock            
+            }
+            json_items.append(item)
+
+        if save:
+            if not os.path.exists(self.save_dir):
+                os.makedirs(self.save_dir)  
+            json_filename = os.path.join(self.save_dir, 'extracted_data.json')
+            with open(json_filename, 'w') as json_file:
+                json.dump(json_items, json_file, indent=4)
+        
+        return json_items

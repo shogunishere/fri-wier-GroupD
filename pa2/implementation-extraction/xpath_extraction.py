@@ -140,3 +140,63 @@ class RtvsloXPathExtractor():
                 json.dump(json_item, json_file, indent=4)
         
         return json_item
+		
+class BigBangXPathExtractor():
+    def __init__(self, file_path, save_dir):
+        self.file_path = file_path
+        self.save_dir = save_dir
+        self.html_reader = HTMLReader(file_path)
+        self.html_content = self.html_reader.read_html_file()
+        self.tree = html.fromstring(self.html_content)
+     
+    def extract_product_type(self):
+        productType = self.tree.xpath("/html/body/div[1]/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/article/div[2]/div[1]/div[2]/a/text()")
+        #print(productType[0])
+        return productType
+		
+    def extract_product_name(self):
+        productName = self.tree.xpath("/html/body/div[1]/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/article/div[2]/div[1]/h2/a/text()")
+        #print(productName[0])
+        return productName
+	
+    def extract_price(self):
+        price = self.tree.xpath("/html/body/div[1]/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/article/div[2]/div[2]/div[1]/text()")
+        #print(price[0])
+        return price
+		
+    def extract_alternative_price(self):
+        alternativePrice = self.tree.xpath("/html/body/div[1]/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/article/div[2]/div[2]/div[2]/p/strong/text()")
+        #print(alternativePrice[0])
+        return alternativePrice
+		
+    def extract_in_stock(self):
+        inStock = self.tree.xpath("/html/body/div[1]/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/article/div[2]/div[3]/div[1]/span/text() | /html/body/div[1]/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/article/div[2]/div[3]/div[1]/span/strong/text()")
+        #print(inStock[0])
+        return inStock
+
+    def to_json(self, save=True):
+        extracted_type = self.extract_product_type()
+        extracted_name = self.extract_product_name()
+        extracted_prices = self.extract_price()
+        extracted_alternative_prices = self.extract_alternative_price()
+        extracted_in_stock = self.extract_in_stock()
+        
+        json_items = []
+        for type, name, price, alternative_price, in_stock in zip(extracted_type, extracted_name, extracted_prices, extracted_alternative_prices, extracted_in_stock):
+            item = {
+                "product_type": type,
+                "product_name": name,
+                "product_price": price,
+                "product_alternative_price": alternative_price,
+                "product_in_stock": in_stock            
+            }
+            json_items.append(item)
+
+        if save:
+            if not os.path.exists(self.save_dir):
+                os.makedirs(self.save_dir)  
+            json_filename = os.path.join(self.save_dir, 'extracted_data.json')
+            with open(json_filename, 'w') as json_file:
+                json.dump(json_items, json_file, indent=4)
+        
+        return json_items

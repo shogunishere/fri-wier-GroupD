@@ -30,8 +30,15 @@ if __name__ == '__main__':
     #print(json_item2)
 	
     # BigBang
-    bigbang_file = '../input-extraction/CustomPages/bigbang.si/bigbang.html'
-    extractor4 = BigBangRegularExpressionExtractor(file_path=bigbang_file, save_dir='./results/bigbang/')
+    #bigbang_file = '../input-extraction/CustomPages/bigbang.si/bigbang.html'
+    #extractor4 = BigBangRegularExpressionExtractor(file_path=bigbang_file, save_dir='./results/bigbang/')
     #extractor4 = BigBangXPathExtractor(file_path=bigbang_file, save_dir='./results/bigbang/')
-    json_item = extractor4.to_json()
+    #json_item = extractor4.to_json()
+    #print(json_item)
+	
+	#Craiglist
+    craiglist_file = '../input-extraction/CustomPages/craigslist.com/birmingham, AL video gaming - craigslist.html'
+    extractor5 = CraigsListRegularExpressionExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
+    #extractor5 = CraigsListXPathExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
+    json_item = extractor5.to_json()
     #print(json_item)

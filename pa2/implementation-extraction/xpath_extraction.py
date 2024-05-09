@@ -243,7 +243,7 @@ class CraigsListXPathExtractor():
                locations.append(None)
                #print("["+str(i)+"]: None")
         location = self.tree.xpath("/html/body/div[1]/main/div[1]/div[5]/ol/li/div/div[2]/text()")
-        print(locations)
+        #print(locations)
         return locations
 		
     #def extract_post_date(self):

@@ -38,7 +38,7 @@ if __name__ == '__main__':
 	
 	#Craiglist
     craiglist_file = '../input-extraction/CustomPages/craigslist.com/birmingham, AL video gaming - craigslist.html'
-    #extractor5 = BigBangRegularExpressionExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
-    extractor5 = CraigsListXPathExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
+    extractor5 = CraigsListRegularExpressionExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
+    #extractor5 = CraigsListXPathExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
     json_item = extractor5.to_json()
     #print(json_item)

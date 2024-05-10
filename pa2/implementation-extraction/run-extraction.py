@@ -17,10 +17,10 @@ if __name__ == '__main__':
     # print(json.dumps(json_data2, indent=4))
 
     # Rtvslo Audi page
-    audi_file = '../input-extraction/WebPages/rtvslo.si/audi.html'
-    extractor3 = RtvsloRegularExpressionExtractor(file_path=audi_file, save_dir='./results/audi/')
+    #audi_file = '../input-extraction/WebPages/rtvslo.si/audi.html'
+    #extractor3 = RtvsloRegularExpressionExtractor(file_path=audi_file, save_dir='./results/audi/')
     #extractor3 = RtvsloXPathExtractor(file_path=audi_file, save_dir='./results/audi/')
-    json_item = extractor3.to_json()
+    #json_item = extractor3.to_json()
     # print(json_item)
 
     # Rtvslo Volvo
@@ -28,4 +28,17 @@ if __name__ == '__main__':
     #extractor4 = RtvsloRegularExpressionExtractor(file_path=volvo_file, save_dir='./results/volvo/')
     #json_item2 = extractor4.to_json()
     #print(json_item2)
-
+	
+    # BigBang
+    #bigbang_file = '../input-extraction/CustomPages/bigbang.si/bigbang.html'
+    #extractor4 = BigBangRegularExpressionExtractor(file_path=bigbang_file, save_dir='./results/bigbang/')
+    #extractor4 = BigBangXPathExtractor(file_path=bigbang_file, save_dir='./results/bigbang/')
+    #json_item = extractor4.to_json()
+    #print(json_item)
+	
+	#Craiglist
+    craiglist_file = '../input-extraction/CustomPages/craigslist.com/birmingham, AL video gaming - craigslist.html'
+    extractor5 = CraigsListRegularExpressionExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
+    #extractor5 = CraigsListXPathExtractor(file_path=craiglist_file, save_dir='./results/craiglist/')
+    json_item = extractor5.to_json()
+    #print(json_item)
